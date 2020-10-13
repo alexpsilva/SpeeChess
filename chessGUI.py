@@ -57,12 +57,9 @@ last_move = None
 
 root = tk.Tk()
 
-root.geometry('500x500')
+root.geometry('400x400')
 
 root.title("SpeeChess")
-
-mylabel = tk.Label(root, text="Hello")
-mylabel.pack()
 
 frame = tk.Canvas(root, width=size, height=size)
 

@@ -7,6 +7,22 @@ import chess.svg
 import cairosvg
 import speech_recognition as sr
 
+# STATE
+
+listened = ''
+listening = False
+fetching = False
+
+
+possible_letters = ["a", "b", "c", "d", "e", "f", "g", "h"]
+possible_numbers = ["1", "2", "3", "4", "5", "6", "7", "8"]
+
+def check_square(square):
+    if (len(square) == 2) and (square[0] in possible_letters) and (square[1] in possible_numbers):
+        return True
+    else:
+        return False
+
 def recognize_move_from_mic(recognizer, microphone):
     ''' Transcribe speech from recorded from `microphone`.
 
@@ -36,7 +52,7 @@ def recognize_move_from_mic(recognizer, microphone):
 
     print('Got an audio! Fetching google API.')
     try:
-        response['move'] = recognizer.recognize_google(audio)
+        response['move'] = recognizer.recognize_google(audio, language="pt-BR")
     except sr.RequestError:
         # API was unreachable or unresponsive
         response['error'] = 'API unavailable'
@@ -81,38 +97,75 @@ def generateBoardImage():
 
 
 def play():
-  print('Recording!')
-  while(True):
-      recognize_response = recognize_move_from_mic(r, mic)
-
-      move = None
-      if recognize_response['move']:
-          move = recognize_response['move']
-      else:
-          print('{}. Try again please.'.format(recognize_response['error']))
-          continue    
+    print('Recording!')
+    while(True):
+        recognize_response = recognize_move_from_mic(r, mic)
         
-      if move == "chess":
-          chess.svg.board(size=350)
-          print(board)
-          continue
+        listened = recognize_response
 
-      if len(move) == 2:
-          move = move.lower()
-      elif len(move) == 3:
-          move = '{}{}'.format(move[0].upper(), move[1:].lower())
-      else:
-          print('{} is a invalid move. Please try again'.format(move))
-          continue
+        print(board.turn)
 
-      try:
-          parsed_move = board.parse_san(move)
-      except ValueError:
-          print('{} is a invalid move. Please try again'.format(move))
-          continue
+        move = None
+        if recognize_response['move']:
+            move = recognize_response['move']
+        else:
+            print('{}. Try again please.'.format(recognize_response['error']))
+            continue    
         
-      print('{} was played!'.format(board.san(parsed_move)))
-      board.push(parsed_move)
+        print(move)
+
+        if move == "rock":
+            move = "O-O"
+        elif len(move) == 2:
+            move = move.lower()
+            
+            if check_square(move) == False:
+                continue
+        
+        elif len(move) == 3:
+
+            moves = {
+                "r" : "K",
+                "q" : "Q",
+                "t" : "R",
+                "c" : "K",
+                "b" : "B",
+                "p" : "P"
+            }
+
+            move = '{}{}'.format(moves[move[0]].upper(), move[1:].lower())
+        elif len(move) == 10:
+            if (check_square(move[0:2]) and check_square(move[8:10])):
+                
+            move = '{}{}'.format(move[0:2].lower(), move[8:10].lower())
+            print(move)
+        else:
+        
+            move = move.split(" ")
+
+            moves = {
+                "rei" : "K",
+                "rainha" : "Q",
+                "torre" : "R",
+                "cavalo" : "K",
+                "bispo" : "B",
+                "peão" : "P"
+            }
+
+            if move[0] in moves.keys():
+                move = '{}{}'.format(moves[move[0]].upper(), move[2].lower())
+            else:
+                print('{} is a invalid move. Please try again'.format(move))
+                continue
+
+        try:
+            parsed_move = board.parse_san(move)
+        except ValueError:
+            print('{} is a invalid move. Please try again'.format(move))
+            continue
+        
+        print('{} was played!'.format(board.san(parsed_move)))
+        board.push(parsed_move)
   
 
 x = threading.Thread(target=play)

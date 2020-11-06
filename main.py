@@ -1,5 +1,6 @@
 import speech_recognition as sr
 import chess
+import chess.svg
 
 def recognize_move_from_mic(recognizer, microphone):
     ''' Transcribe speech from recorded from `microphone`.
@@ -55,6 +56,11 @@ while(True):
     else:
         print('{}. Try again please.'.format(recognize_response['error']))
         continue    
+    
+    if move == "chess":
+        chess.svg.board(size=350)
+        print(board)
+        continue
 
     if len(move) == 2:
         move = move.lower()

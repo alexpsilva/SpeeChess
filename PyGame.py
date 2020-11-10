@@ -1,14 +1,31 @@
 import tkinter as tk
 import threading
 import time
-import re
-import unidecode
+from PIL import Image, ImageTk
 import chess
 import chess.svg
+
+import os
+os.environ['path'] += r';C:\path\cairo\dlls'
+
 import cairosvg
 import speech_recognition as sr
-from PIL import Image, ImageTk
 
+# STATE
+
+listened = ''
+listening = False
+fetching = False
+
+
+possible_letters = ["a", "b", "c", "d", "e", "f", "g", "h"]
+possible_numbers = ["1", "2", "3", "4", "5", "6", "7", "8"]
+
+def check_square(square):
+    if (len(square) == 2) and (square[0] in possible_letters) and (square[1] in possible_numbers):
+        return True
+    else:
+        return False
 
 def recognize_move_from_mic(recognizer, microphone):
     ''' Transcribe speech from recorded from `microphone`.
@@ -85,89 +102,78 @@ def generateBoardImage():
 def invalid_move(move):
     print('{} is a invalid move. Please try again'.format(move))
 
-def switch_player(player):
-    if player == 'White':
-        player = 'Black'
-    else:
-        player = White
-
-def clean_move_string(raw_str):
-    replacements = {
-        # Words to replace
-        'um': '1',
-        'dois': '2',
-        'tres': '3',
-        'quatro': '4',
-        'cinco': '5',
-        'seis': '6',
-        'sete': '7',
-        'oito': '8',
-        'rei' : 'K',
-        'rainha' : 'Q',
-        'torre' : 'R',
-        'cavalo' : 'N',
-        'bispo' : 'B',
-        'peão' : 'P',
-
-        # Common mistakes
-        'se': 'c',
-        'de': 'd',
-
-        # Words to remove
-        'para': '',
-        ' ': '',
-        '-': '',
-
-        'rock': 'O-O',
-        'roquegrand': 'O-O-O',
-    }
-
-    clean_str = unidecode.unidecode(raw_str.lower())
-
-    for old_str, new_str in replacements.items():
-        clean_str = clean_str.replace(old_str, new_str)
-
-    return clean_str
-
-
 def play():
     print('Recording!')
-    player = 'White'
     while(True):
         recognize_response = recognize_move_from_mic(r, mic)
+        
+        listened = recognize_response
+
+        print(board.turn)
 
         move = None
         if recognize_response['move']:
             move = recognize_response['move']
         else:
             print('{}. Try again please.'.format(recognize_response['error']))
-            continue
+            continue    
         
-        move = clean_move_string(move)
         print(move)
 
-        if re.search('^([a-h])([1-8])([a-h])([1-8])$', move):
-            move_notation = board.parse_uci
+        if move == "rock":
+            move = "O-O"
+        elif len(move) == 2:
+            move = move.lower()
+            
+            if check_square(move) == False:
+                continue
+        
+        elif len(move) == 3:
+
+            moves = {
+                "r" : "K",
+                "q" : "Q",
+                "t" : "R",
+                "c" : "K",
+                "b" : "B",
+                "p" : "P"
+            }
+
+            move = '{}{}'.format(moves[move[0]].upper(), move[1:].lower())
+        elif len(move) == 10:
+            move = '{}{}'.format(move[0:2].lower(), move[8:10].lower())
+
+            if (check_square(move[0:2]) and check_square(move[8:10])):
+                print(move)
+            else:
+                invalid_move(move)
         else:
-            move_notation = board.parse_san
+            move = move.split(" ")
+
+            moves = {
+                "rei" : "K",
+                "rainha" : "Q",
+                "torre" : "R",
+                "cavalo" : "K",
+                "bispo" : "B",
+                "peão" : "P"
+            }
+
+            if move[0] in moves.keys():
+                move = '{}{}'.format(moves[move[0]].upper(), move[2].lower())
+            else:
+                invalid_move(move)
+                continue
 
         try:
-            parsed_move = move_notation(move)
+            parsed_move = board.parse_san(move)
         except ValueError:
             print('{} is a invalid move. Please try again'.format(move))
             continue
         
         print('{} was played!'.format(board.san(parsed_move)))
         board.push(parsed_move)
-
-        if board.is_stalemate():
-            print('Stalemate!')
-        elif board.is_insufficient_material():
-            print('Insufficient Material')
-        elif board.is_game_over():
-            print('{} has won!'.format(player))
-        
-        switch_player(player)
+  
 
 x = threading.Thread(target=play)
 y = threading.Thread(target=generateBoardImage)

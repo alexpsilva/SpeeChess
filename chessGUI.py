@@ -9,8 +9,14 @@ import cairosvg
 import speech_recognition as sr
 from PIL import Image, ImageTk
 
+DISPLAY_MESSAGE = "Escutando!"
+
+STATUS_MESSAGE = "Jogando."
+
+LAST_MOVE = ""
 
 def recognize_move_from_mic(recognizer, microphone):
+    global DISPLAY_MESSAGE
     ''' Transcribe speech from recorded from `microphone`.
 
     returns: {
@@ -37,6 +43,7 @@ def recognize_move_from_mic(recognizer, microphone):
         'move': None
     }
 
+    DISPLAY_MESSAGE = "Audio Recebido!"
     print('Got an audio! Fetching google API.')
     try:
         response['move'] = recognizer.recognize_google(audio, language="pt-BR")
@@ -60,14 +67,28 @@ last_move = None
 
 root = tk.Tk()
 
-root.geometry('400x400')
+root.geometry('600x600')
 
 root.title("SpeeChess")
 
-frame = tk.Canvas(root, width=size, height=size)
+frame1 = tk.Canvas(root, width=200, height=100)
+txt = tk.Label(frame1, text=DISPLAY_MESSAGE, pady=10)
+frame1.pack()
+txt.pack()
 
+frame2 = tk.Canvas(root, width=size, height=size)
+
+txt2 = tk.Label(frame1, text=STATUS_MESSAGE, pady=10)
+
+txt3 = tk.Label(frame1, text=LAST_MOVE,pady=10)
+frame1.pack()
+txt2.pack()
+txt3.pack()
 
 def generateBoardImage():
+  global LAST_MOVE
+  global DISPLAY_MESSAGE
+  global STATUS_MESSAGE
   global last_move
   while True:
     if last_move == None or board.move_stack[-1] != last_move:
@@ -78,8 +99,12 @@ def generateBoardImage():
       img = Image.open('board.png')
       pimg = ImageTk.PhotoImage(img)
 
-      frame.pack()
-      frame.create_image(0,0,anchor='nw',image=pimg)
+      txt.config(text = DISPLAY_MESSAGE)
+      txt2.config(text = STATUS_MESSAGE)
+      txt3.config(text = LAST_MOVE)
+
+      frame2.pack()
+      frame2.create_image(0,0,anchor='nw',image=pimg)
       time.sleep(0.1)
 
 def invalid_move(move):
@@ -131,9 +156,15 @@ def clean_move_string(raw_str):
 
 
 def play():
+    global DISPLAY_MESSAGE
+    global STATUS_MESSAGE
+    global LAST_MOVE
+    global last_move
+
     print('Recording!')
     player = 'White'
     while(True):
+        DISPLAY_MESSAGE = "Escutando!"
         recognize_response = recognize_move_from_mic(r, mic)
 
         move = None
@@ -143,6 +174,14 @@ def play():
             print('{}. Try again please.'.format(recognize_response['error']))
             continue
         
+        if move == "reiniciar":
+            board.reset()
+            DISPLAY_MESSAGE = "Escutando!"
+            STATUS_MESSAGE = "Jogando."
+            LAST_MOVE = ""
+            last_move = None
+            continue
+
         move = clean_move_string(move)
         print(move)
 
@@ -157,6 +196,8 @@ def play():
             print('{} is a invalid move. Please try again'.format(move))
             continue
         
+        LAST_MOVE = '{} foi jogado!'.format(board.san(parsed_move))
+
         print('{} was played!'.format(board.san(parsed_move)))
         board.push(parsed_move)
 
@@ -164,9 +205,10 @@ def play():
             print('Stalemate!')
         elif board.is_insufficient_material():
             print('Insufficient Material')
+            STATUS_MESSAGE = 'Empate!'
         elif board.is_game_over():
             print('{} has won!'.format(player))
-        
+            STATUS_MESSAGE = '{} venceu!'.format(player)
         switch_player(player)
 
 x = threading.Thread(target=play)
